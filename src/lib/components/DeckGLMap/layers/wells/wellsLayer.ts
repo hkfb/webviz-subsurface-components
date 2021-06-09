@@ -21,6 +21,12 @@ const defaultProps = {
     selectionEnabled: true,
 };
 
+function squared_distance(a, b) {
+    const dx = a[0] - b[0];
+    const dy = a[1] - b[1];
+    return dx * dx + dy * dy;
+}
+
 export default class WellsLayer extends CompositeLayer<
     Feature,
     WellsLayerProps<Feature>
@@ -85,6 +91,33 @@ export default class WellsLayer extends CompositeLayer<
 
         if (this.props.outline) return [outline, colors, highlight];
         else return [colors, highlight];
+    }
+
+    getPickingInfo({ info }) {
+        if (info.object == null)
+            return info;
+
+        const measured_depths = info.object.properties.md[0];
+        const trajectory = info.object.geometry.geometries[1].coordinates;
+
+        let min_d = 99999;
+        let vertex_index = 0;
+        for (var i = 0; i < trajectory.length; i++) {
+            const d = squared_distance(trajectory[i], info.coordinate)
+
+            if (d > min_d)
+                continue;
+
+            vertex_index = i;
+            min_d = d;
+        }
+
+        const md = measured_depths[vertex_index];
+
+        return {
+            ...info,
+            propertyValue: md,
+        };
     }
 }
 
