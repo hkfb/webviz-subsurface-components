@@ -6,6 +6,7 @@ import { PickInfo } from "deck.gl";
 import { subtract, distance, dot } from "mathjs";
 import { interpolateRgbBasis } from "d3-interpolate";
 import { color } from "d3-color";
+import { BezierCurveLayer } from "./bezier-curve-layer";
 
 import { Feature } from "geojson";
 
@@ -165,6 +166,116 @@ function getMd(pickInfo): number | null {
     return (md0 * c1 + md1 * c0) / dv;
 }
 
+/**
+ * A helper function to compute the control point of a quadratic bezier curve
+ * @param  {number[]} source  - the coordinates of source point, ex: [x, y, z]
+ * @param  {number[]} target  - the coordinates of target point, ex: [x, y, z]
+ * @param  {number} direction - the direction of the curve, 1 or -1
+ * @param  {number} offset    - offset from the midpoint
+ * @return {number[]}         - the coordinates of the control point
+ */
+function computeControlPoint(source, target, direction, offset) {
+  const midPoint = [(source[0] + target[0]) / 2, (source[1] + target[1]) / 2];
+  const dx = target[0] - source[0];
+  const dy = target[1] - source[1];
+  const normal = [dy, -dx];
+  const length = Math.sqrt(Math.pow(normal[0], 2.0) + Math.pow(normal[1], 2.0));
+  const normalized = [normal[0] / length, normal[1] / length];
+  return [
+    midPoint[0] + normalized[0] * offset * direction,
+    midPoint[1] + normalized[1] * offset * direction
+  ];
+}
+
+/**
+ * A helper function to generate a graph with curved edges.
+ * @param  {Object} graph - {nodes: [], edges: []}
+ * expected input format: {
+ *   nodes: [{id: 'a', position: [0, -100]}, {id: 'b', position: [0, 100]}, ...],
+ *   edges: [{id: '1', sourceId: 'a',, targetId: 'b',}, ...]
+ * }
+ * @return {Object} Return new graph with curved edges.
+ * expected output format: {
+ *   nodes: [{id: 'a', position: [0, -100]}, {id: 'b', position: [0, 100]}, ...],
+ *   edges: [{id: '1', sourceId: 'a', source: [0, -100], targetId: 'b', target: [0, 100], controlPoint: [50, 0]}, ...]
+  }
+ */
+function layoutGraph(graph) {
+  // create a map for referencing node position by node id.
+  const nodePositionMap = graph.nodes.reduce((res, node) => {
+    res[node.id] = node.position;
+    return res;
+  }, {});
+  // bucket edges between the same source/target node pairs.
+  const nodePairs = graph.edges.reduce((res, edge) => {
+    const nodes = [edge.sourceId, edge.targetId];
+    // sort the node ids to count the edges with the same pair
+    // but different direction (a -> b or b -> a)
+    const pairId = nodes.sort().toString();
+    // push this edge into the bucket
+    if (!res[pairId]) {
+      res[pairId] = [edge];
+    } else {
+      res[pairId].push(edge);
+    }
+    return res;
+  }, {});
+  // start to create curved edges
+  const unitOffset = 30;
+  const layoutEdges = Object.keys(nodePairs).reduce((res, pairId) => {
+    const edges = nodePairs[pairId];
+    const curved = edges.length > 1;
+    // curve line is directional, pairId is a list of sorted node ids.
+    const nodeIds = pairId.split(',');
+    const curveSourceId = nodeIds[0];
+    const curveTargetId = nodeIds[1];
+    // generate new edges with layout information
+    const newEdges = edges.map((e, idx) => {
+      // curve direction (1 or -1)
+      const direction = idx % 2 ? 1 : -1;
+      // straight line if there's only one edge between this two nodes.
+      const offset = curved ? (1 + Math.floor(idx / 2)) * unitOffset : 0;
+      return {
+        ...e,
+        source: nodePositionMap[e.sourceId],
+        target: nodePositionMap[e.targetId],
+        controlPoint: computeControlPoint(
+          nodePositionMap[curveSourceId],
+          nodePositionMap[curveTargetId],
+          direction,
+          offset
+        )
+      };
+    });
+    return res.concat(newEdges);
+  }, []);
+  return {
+    nodes: graph.nodes,
+    edges: layoutEdges
+  };
+}
+
+function getEdges(data) {
+    let edges = [];
+    for (let i = 0; i < data.length; i++) {
+        const lineString = data[i]['geometry']['geometries'][1]['coordinates'];
+        const stride = 4;
+        for (let j = 0; j < lineString.length - 2 * stride; j += 2 * stride) {
+            const a = lineString[j];
+            const b = lineString[j + 1 * stride];
+            const c = lineString[j + 2 * stride];
+            edges.push(
+                {
+                    "source": a,
+                    "target": c,
+                    "controlPoint": b,
+                }
+            );
+        }
+    }
+    return edges;
+}
+
 export interface WellsPickInfo extends PickInfo<unknown> {
     logName?: string;
     propertyValue?: number;
@@ -254,6 +365,30 @@ export default class WellsLayer extends CompositeLayer<
             })
         );
 
+        const edges = [
+            {
+                "source": [434862.5, 6478195.5],
+                "target": [434362.5, 6478395.5],
+                "controlPoint": [434962.5, 6478095.5],
+            }
+        ];
+
+        const bezier_layer = new BezierCurveLayer(
+            {
+                id: 'edges',
+                data: getEdges(this.props.data),
+                getSourcePosition: e => e.source,
+                getTargetPosition: e => e.target,
+                getControlPoint: e => e.controlPoint,
+                getColor: e => [150, 150, 150, 255],
+                strokeWidth: 5,
+                // interaction:
+                pickable: true,
+                autoHighlight: true,
+                highlightColor: [255, 0, 0, 255]
+            }
+        );
+
         const layers: (GeoJsonLayer<Feature> | PathLayer<LogCurveDataType>)[] =
             [colors, highlight];
         if (this.props.outline) {
@@ -262,6 +397,7 @@ export default class WellsLayer extends CompositeLayer<
         if (this.props.logCurves) {
             layers.splice(1, 0, log_layer);
         }
+        return [bezier_layer];
         return layers;
     }
 
