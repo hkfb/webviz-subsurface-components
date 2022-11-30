@@ -1,6 +1,11 @@
 import React from "react";
 import { ComponentStory, ComponentMeta } from "@storybook/react";
 import { format } from "d3-format";
+import DeckGL from "@deck.gl/react/typed";
+import { GeoJsonLayer } from "@deck.gl/layers/typed";
+import { OrthographicView } from "@deck.gl/react/typed";
+//import { OrthographicView } from "@deck.gl/core/typed";
+import MapView from "@deck.gl/react/typed";
 import DeckGLMap from "./DeckGLMap";
 import {
     TooltipCallback,
@@ -12,6 +17,8 @@ import {
 } from "../..";
 import { PickingInfo } from "@deck.gl/core/typed";
 import { ViewStateType } from "./components/Map";
+//import MapLayer from "./layers/map/mapLayer";
+import { AxesLayer } from "./layers";
 
 export default {
     component: DeckGLMap,
@@ -197,4 +204,82 @@ const cameraPosition: ViewStateType = {
 customizedCameraPosition.args = {
     ...defaultProps,
     cameraPosition,
+};
+
+
+export const MultiViewReact: ComponentStory<typeof DeckGL> = (args) => {
+    args.layers = [
+/*         new MapLayer(
+            {
+                meshUrl: "hugin_depth_25_m.float32",
+                frame: {
+                    origin: [432150, 6475800],
+                    count: [291, 229],
+                    increment: [25, 25],
+                    rotDeg: 0,
+                },
+            }
+        ) */
+        /*
+        new AxesLayer(
+            {
+                bounds: [-100, -100, 0, 100, 100, 100] as [
+                    number,
+                    number,
+                    number,
+                    number,
+                    number,
+                    number
+                ],
+            }
+        )
+        */
+       new GeoJsonLayer(
+            {
+                data: [{
+                    type: "Feature",
+                    properties: {},
+                    geometry: {
+                        type: "Polygon",
+                        coordinates: [
+                            [
+                                [43, 64],
+                                [40, 74],
+                                [30, 84],
+                                [20, 34],
+                                [30, 4],
+                            ],
+                        ],
+                    },
+                }],
+                getLineWidth: 20,
+                lineWidthMinPixels: 2,
+                getLineColor: [0, 255, 255],
+                getFillColor: [0, 255, 0],
+                opacity: 0.3,
+            }
+       )
+    ];
+     //args.controller = true;
+    args.initialViewState = {
+        longitude: 10,
+        latitude: 10,
+        //target: [0, 0, 0],
+    };
+    /*
+    args.viewState = {
+        //longitude: 0,
+        //latitude: 0,
+        target: [0, 0, 0],
+    };
+    */
+    //args.views = [new OrthographicView({}), new OrthographicView({})];
+    //args.views = [new OrthographicView({})];
+    //return <DeckGL {...args} ></DeckGL>;
+    return (
+        <DeckGL {...args} >
+            <OrthographicView id="scene1" x="50%" width="50%" />
+            <MapView id="scene2" width="50%" />
+        </DeckGL>
+    );
 };

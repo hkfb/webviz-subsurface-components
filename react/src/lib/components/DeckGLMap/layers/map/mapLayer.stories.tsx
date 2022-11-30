@@ -1,11 +1,15 @@
 import React from "react";
-import { useHoverInfo } from "../../components/Map";
-import DeckGLMap from "../../DeckGLMap";
-import InfoCard from "../../components/InfoCard";
+import DeckGL from "@deck.gl/react/typed";
+import { OrthographicView } from "@deck.gl/core/typed";
 import { ComponentStory, ComponentMeta } from "@storybook/react";
 import { Slider } from "@material-ui/core";
 import { makeStyles } from "@material-ui/styles";
 import { ContinuousLegend } from "@emerson-eps/color-tables";
+import { useHoverInfo } from "../../components/Map";
+import DeckGLMap from "../../DeckGLMap";
+import InfoCard from "../../components/InfoCard";
+import MapLayer from "./mapLayer";
+import AxesLayer from "../axes/axesLayer";
 
 export default {
     component: DeckGLMap,
@@ -934,4 +938,47 @@ ColorMapRange.parameters = {
             story: 'Example changing the "ColorMapRange" property using a slider.',
         },
     },
+};
+
+export const UsingDeckGL: ComponentStory<typeof DeckGL> = (args) => {
+    args.layers = [
+        new MapLayer(
+            {
+                id: "map-layer",
+                meshUrl: "hugin_depth_25_m.float32",
+                frame: {
+                    origin: [0, 0],
+                    count: [291, 229],
+                    increment: [25, 25],
+                    rotDeg: 0,
+                },
+                propertiesUrl: "kh_netmap_25_m.float32",
+                colorMapName: "Physics",
+            }
+        ),
+        new AxesLayer(
+            {
+                bounds: [-100, -100, 0, 100, 100, 100] as [
+                    number,
+                    number,
+                    number,
+                    number,
+                    number,
+                    number
+                ],
+            }
+        )
+    ];
+    args.views = [
+        new OrthographicView(
+            {
+                viewState: {
+                    //target: [432150, 6475800],
+                    zoom: -1,
+                },
+                controller: true,
+            }
+        )
+    ];
+    return <DeckGL {...args} />;
 };

@@ -709,7 +709,7 @@ const mapDataTemplate = (args) => {
                 colorRange && isAuto == false
                     ? colorRange
                     : layers[0].colorMapRange,
-            colorMapFunction: colorMapFunc(),
+            colorMapFunction: colorMapFunc,
         },
     ];
     return (
