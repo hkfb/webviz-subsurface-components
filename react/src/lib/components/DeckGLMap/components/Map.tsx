@@ -902,6 +902,7 @@ const Map: React.FC<MapProps> = ({
     );
     if (!deckGLViews || isEmpty(deckGLViews) || isEmpty(deckGLLayers))
         return null;
+    console.log(deckGLViews);
     return (
         <div onContextMenu={(event) => event.preventDefault()}>
             <DeckGL

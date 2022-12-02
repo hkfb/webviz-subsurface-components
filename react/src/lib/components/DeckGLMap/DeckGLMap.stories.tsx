@@ -3,9 +3,11 @@ import { ComponentStory, ComponentMeta } from "@storybook/react";
 import { format } from "d3-format";
 import DeckGL from "@deck.gl/react/typed";
 import { GeoJsonLayer } from "@deck.gl/layers/typed";
-import { OrthographicView } from "@deck.gl/react/typed";
-//import { OrthographicView } from "@deck.gl/core/typed";
+//import OrthographicView from "@deck.gl/react/typed";
+import OrthographicView from "@deck.gl/react/typed";
+import { OrthographicView as OrthographicViewEs } from "@deck.gl/core/typed";
 import MapView from "@deck.gl/react/typed";
+import View from "@deck.gl/react/typed";
 import DeckGLMap from "./DeckGLMap";
 import {
     TooltipCallback,
@@ -18,7 +20,8 @@ import {
 import { PickingInfo } from "@deck.gl/core/typed";
 import { ViewStateType } from "./components/Map";
 //import MapLayer from "./layers/map/mapLayer";
-import { AxesLayer } from "./layers";
+import { AxesLayer, MapLayer } from "./layers";
+import { ColorLegend } from "@emerson-eps/color-tables";
 
 export default {
     component: DeckGLMap,
@@ -260,26 +263,80 @@ export const MultiViewReact: ComponentStory<typeof DeckGL> = (args) => {
             }
        )
     ];
-     //args.controller = true;
     args.initialViewState = {
-        longitude: 10,
-        latitude: 10,
-        //target: [0, 0, 0],
+        //longitude: 40,
+        //latitude: 40,
+        zoom: -1,
+        target: [40, 40, 0],
     };
     /*
     args.viewState = {
-        //longitude: 0,
-        //latitude: 0,
-        target: [0, 0, 0],
+        longitude: 40,
+        latitude: 40,
+        //target: [0, 0, 0],
     };
     */
-    //args.views = [new OrthographicView({}), new OrthographicView({})];
-    //args.views = [new OrthographicView({})];
-    //return <DeckGL {...args} ></DeckGL>;
+    const leftViewArgs = {
+        x: "0%", y: "0%", width: "50%", height: "100%", controller: true,
+        //viewState: {target: [40, 40, 0]}
+    };
+    const rightViewArgs = {
+        x: "50%", width: "50%", controller: true,
+        //viewState: {target: [10, 10, 0]}
+    };
+
+    /*
+    args.views = [
+        new OrthographicViewEs(
+            {
+                ...leftViewArgs,
+                id: "scene1"
+            }
+        ),
+        new OrthographicViewEs(
+            {
+                ...rightViewArgs,
+                id: "scene2"
+            }
+        )
+    ];
+    */
+    //args.views = [new OrthographicView({id: "scene1"})];
+
+    const [legendSettings, setLegendSettings] = React.useState([]);
+
+    // Doesn't work
+    return (
+        <DeckGL {...args} controller={true}>
+            <OrthographicView width="30%" id="scene1">
+                <ColorLegend {...legendSettings} />
+            </OrthographicView>
+            <OrthographicView width="70%" id="scene2" />
+        </DeckGL>
+    );
+
+    // Annotation callback for layers
+    // Has to be supported by the layer
+    args.layers = [
+        new MapLayer({
+            meshUrl: "hugin_depth_25_m.float32",
+            frame: {
+                origin: [432150, 6475800],
+                count: [291, 229],
+                increment: [25, 25],
+                rotDeg: 0,
+            },
+            annotation: <ColorLegend {...legendSettings} />,
+        }),
+    ];
+
+
+    // Generic - works with any layer, any annotation
     return (
         <DeckGL {...args} >
-            <OrthographicView id="scene1" x="50%" width="50%" />
-            <MapView id="scene2" width="50%" />
+            useLayerAnnotation(layerId, <ColorLegend {...legendSettings} />);
+            useViewAnnotation(viewId, <ColorLegend {...legendSettings} />);
+            useLegendAnnotation(layerId, legendSettings);
         </DeckGL>
     );
 };
