@@ -123,3 +123,7 @@ export function useShiftHeld(): {
 
     return { divRef, shiftHeld };
 }
+
+export function testFunction(): number {
+    return 1;
+}
