@@ -81,10 +81,21 @@ async function screenshotWithRetry(
 }
 
 const screenshotTest = async (page: Page, context: TestContext) => {
+    // Poll interval intentionally matches the original (pre-hardening)
+    // implementation's 10s wait: some stories (e.g. SubsurfaceViewer's
+    // camera examples) have mid-render stalls of a second or more, which a
+    // short poll can mistake for stability, capturing a half-rendered
+    // frame. A short poll only pays off if every story's true settle time
+    // is well below it - that isn't the case here, so keep this
+    // conservative. maxAttempts is bounded (unlike the original, which was
+    // unbounded and only implicitly capped by Jest's 60s testTimeout) to
+    // fail fast with a diff instead of a bare timeout, sized so the total
+    // stays comfortably under the 60s testTimeout shared with
+    // domSnapshotTest below.
     const screenshot = await waitUntilStable(
         () => screenshotWithRetry(page),
         (a, b) => a.equals(b),
-        { maxAttempts: 20, poll: 500 }
+        { maxAttempts: 4, poll: 10000 }
     );
 
     expect(screenshot).toMatchImageSnapshot({
